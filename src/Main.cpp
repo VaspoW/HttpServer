@@ -10,59 +10,109 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <fcntl.h>
-
+#include <getopt.h>
 #define BUF_LEN 1024
+
+#include "Configuration.h"
+
 void HandleConnection(int fd);
+void PrintVersion(const char* app);
+void Usage(const char* app);
 int main(int argc,char** argv)
 {
 	//initialize app
 		//inilialize default logging
 		//read configrutaion
-		//change logging if needed
-		//setup signal handler
-	
-	//create socket
-	int sockfd, newsockfd, portno;
-	socklen_t clilen;
-	struct sockaddr_in serv_addr, cli_addr;
-	int n;
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	//set address
-	bzero((char *) &serv_addr, sizeof(serv_addr));
-	portno = 7000;
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_addr.s_addr = INADDR_ANY;
-	serv_addr.sin_port = htons(portno);
-	
-	//bind socket
-	if (bind(sockfd, (struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
+	int opt;
+	std::string confPath="httpserver.conf";
+	while ((opt = getopt(argc, argv, "hvc:")) != -1)
 	{
-		perror("Error while bind");
-		exit(-1);
-	}
-	
-	//listen socket
-	listen(sockfd,5);
-	
-	//accept on socket
-	while(1)
-	{
-		newsockfd = accept(sockfd,(struct sockaddr *) &cli_addr,&clilen);
-		//on request
-		if (newsockfd < 0) 
+		switch (opt)
 		{
-			perror("Error while accept");
-			//exit(-2);
+			case 'c':
+				confPath = std::string(optarg);
+			break;
+			case 'v':
+				PrintVersion(argv[0]);
+				exit(EXIT_SUCCESS);
+			break;
+			case 'h':
+				Usage(argv[0]);
+				exit(EXIT_SUCCESS);
+			break;
+			default:
+				Usage(argv[0]);
+				exit(EXIT_FAILURE);
 		}
-		std::cout<<"Hello\n";
-		//create new thread to handle connection
-		std::thread t(HandleConnection,newsockfd);
-		t.detach();
-		//sleep(1);
 	}
-	close(newsockfd);
-	close(sockfd);
+	try
+	{
+		Configuration conf(confPath);
+			//change logging if needed
+			//setup signal handler
+	
+		//create socket
+		int sockfd, newsockfd, portno;
+		socklen_t clilen;
+		struct sockaddr_in serv_addr, cli_addr;
+		int n;
+		sockfd = socket(AF_INET, SOCK_STREAM, 0);
+		//set address
+		bzero((char *) &serv_addr, sizeof(serv_addr));
+		portno = 7000;
+		serv_addr.sin_family = AF_INET;
+		serv_addr.sin_addr.s_addr = INADDR_ANY;
+		serv_addr.sin_port = htons(portno);
+	
+		//bind socket
+		if (bind(sockfd, (struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0)
+		{
+			perror("Error while bind");
+			exit(-1);
+		}
+	
+		//listen socket
+		listen(sockfd,5);
+	
+		//accept on socket
+		while(1)
+		{
+			newsockfd = accept(sockfd,(struct sockaddr *) &cli_addr,&clilen);
+			//on request
+			if (newsockfd < 0) 
+			{
+				perror("Error while accept");
+				//exit(-2);
+			}
+			std::cout<<"Hello\n";
+			//create new thread to handle connection
+			std::thread t(HandleConnection,newsockfd);
+			t.detach();
+			//sleep(1);
+		}
+		close(newsockfd);
+		close(sockfd);
+	}
+	catch(std::exception& ex)
+	{
+		std::cout<<ex.what()<<" at:"<<__LINE__<<" in "<<__FILE__<<std::endl;
+	}
+	catch(...)
+	{
+		std::cout<<"Unknown exception at:"<<__LINE__<<"in"<<__FILE__<<std::endl;
+	}
 	return 0;
+}
+void PrintVersion(const char* app)
+{
+	std::cout<<app<<":"<<"0.0.0 dev"<<std::endl;
+}
+void Usage(const char* app)
+{
+	std::cout<<app<<" "<<"[-v] [-h] [-c file]"<<std::endl;
+	std::cout<<"\t-h\t Print help\n";
+	std::cout<<"\t-v\t Print version\n";
+	std::cout<<"\t-c file\t path to config file [default:httpserver.conf]\n";
 }
 void HandleConnection(int fd)
 {
@@ -83,7 +133,7 @@ void HandleConnection(int fd)
 		//get request type
 			//validate request type
 		//respond request
-	fcntl(fd, F_SETFL, O_NONBLOCK | O_RDWR);
+	//fcntl(fd, F_SETFL, O_NONBLOCK | O_RDWR);
 	bool doRead=true;
 	while(doRead)
 	{
